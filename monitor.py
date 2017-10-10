@@ -3,8 +3,12 @@ class Environment:
     def __init__(self, nodes_count):
         self.nodes = []
         for i in range(nodes_count):
-            self.nodes.append(Node())
-        self.nodes_count = Talker.last_id + 1
+            node = Node()
+            node.talker.request_numbers = [0 for element in range(nodes_count)]
+            self.nodes.append(node)
+
+        self.nodes_count = Talker.new_id
+        self.token = Token(self.nodes_count)
 
 
 class Node:
@@ -14,21 +18,21 @@ class Node:
 
 
 class Talker:
-    last_id = 0
+    new_id = 0
 
     def __init__(self):
-        self.id = Talker.last_id
+        self.id = Talker.new_id
         self.request_numbers = []
         self.token = None
 
-        Talker.last_id += 1
+        Talker.new_id += 1
 
 
-    def request
+    #def request
 
 
 class Token:
 
-    def __init__(self):
-        self.request_numbers = []
+    def __init__(self, nodes_count):
+        self.request_numbers = [0 for element in range(nodes_count)]
         self.queue = []
