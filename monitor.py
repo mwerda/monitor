@@ -16,7 +16,6 @@ class Node:
     def __init__(self):
         self.talker = Talker()
 
-
 class Talker:
     new_id = 0
 
@@ -27,6 +26,13 @@ class Talker:
 
         Talker.new_id += 1
 
+    def request(self):
+        #for element in ra
+        # TODO implement sending requests
+
+    def nodes_count_in_environment(self):
+        return len(self.request_numbers)
+
 
     #def request
 
@@ -36,3 +42,7 @@ class Token:
     def __init__(self, nodes_count):
         self.request_numbers = [0 for element in range(nodes_count)]
         self.queue = []
+
+
+def main():
+    environment = Environment(4)
