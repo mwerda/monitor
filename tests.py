@@ -1,10 +1,11 @@
 import unittest
-from monitor import Environment, Node, Talker, Token
+from monitor import Environment, Node, Talker, Token, Communicator, DEFAULT_START_THREADS
 
 
 class TestEnvironment(unittest.TestCase):
     def test_create_environment(self):
-        e = Environment(5)
+        communicator = Communicator(5)
+        e = Environment(5, communicator)
         self.assertTrue(e.nodes_count == 5)
         self.assertTrue(len(e.nodes) == 5)
         self.assertTrue(Talker.new_id == 5)
@@ -18,6 +19,12 @@ class TestToken(unittest.TestCase):
         self.assertTrue(token.request_numbers == [0, 0, 0, 0, 0])
 
 
+class TestEnvironmentCommunicatorTalkers:   # if DEFAULT_START_THREADS, awaken thread should print something out
+    def test_create_communicator_environment_check_talkers(self):
+        communicator = Communicator(4)
+        environment = Environment(4, communicator)
+        communicator.events[1].set()
+        communicator.events[1].clear()
 
 if __name__ == '__main__':
     unittest.main(exit=False)
