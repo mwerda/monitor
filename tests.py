@@ -1,5 +1,6 @@
 import unittest
 from monitor import Environment, Node, Talker, Token, Communicator, DEFAULT_START_THREADS
+import copy
 
 
 class TestEnvironment(unittest.TestCase):
@@ -30,11 +31,15 @@ class TestEnvironmentCommunicatorTalkers:   # if DEFAULT_START_THREADS, awaken t
         Talker.new_id = 0
 
 class TestTalkers:
-    communicator = Communicator(2)
-    environment = Environment(2, communicator)
-    environment.nodes[0].talker.send_request()
-    print()
-    Talker.new_id = 0
+    def test_talkers(self):
+        communicator = Communicator(3)
+        environment = Environment(3, communicator)
+        environment.token.queue.append(2)
+        environment.nodes[0].talker.send_request()
+        environment.nodes[1].talker.token = copy.copy(environment.token)
+        environment.nodes[1].talker.send_request()
+        print()
+        Talker.new_id = 0
 
 if __name__ == '__main__':
     unittest.main(exit=False)

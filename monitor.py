@@ -1,8 +1,11 @@
 from threading import Event, Condition, Thread, Lock
 import copy
 
+history = []
+
 DEFAULT_START_THREADS = True
 
+shared_variable = 0
 
 class Communicator:
 
@@ -61,18 +64,19 @@ class Talker(Thread):
         # for any longer than necessary
         incoming_data = {}
         while True:
-            if len(incoming_data) > 0:
-                # This means, that more data comes to the buffer than expected at the moment of implementation -
-                # in order to properly handle this case, this block should be updated / reimplemented to avoid data loss
-                raise Exception
+            # if len(incoming_data) > 0:
+            #     # This means, that more data comes to the buffer than expected at the moment of implementation -
+            #     # in order to properly handle this case, this block should be updated / reimplemented to avoid data loss
+            #     raise Exception
 
+            print('Node no ' + str(self.id) + ' sets up a thread waiting for calls.' )
             self.event.wait()
             self.event.clear()
 
             # Preventing data races
             lock = Lock()
             with lock:
-                incoming_data = dict(self.channel)
+                incoming_data = dict(self.all_channels[self.id])
             self.channel = {}
 
             function_name = incoming_data['call']
@@ -81,12 +85,13 @@ class Talker(Thread):
                 'receive_token': self.receive_token
             }[function_name]
 
-            print('Talker in node: ' + str(self.id) + ' was awoken with ' + function_name + ' call')
+            print('Talker in node: ' + str(self.id) + ' was awoken with "' + function_name + '" call')
             function_to_call(incoming_data)
 
 
     # params: {'id': int, 'seq': int (sequential number)
     def handle_incoming_request(self, args):
+        print('Node no ' + str(self.id) + ' handling a request')
         self.event.clear()
         self.request_numbers[args['id']]\
             = args['seq'] if args['seq'] > self.request_numbers[args['id']] else self.request_numbers[args['id']]
@@ -95,23 +100,28 @@ class Talker(Thread):
             self.token = None
 
     def send_request(self):
+        print('THREAD NO ' + str(self.id) + ' REQUESTED TO BE GRANTED WITH TOKEN')
         self.request_numbers[self.id] += 1
         i = 0
         for element in self.all_channels:
             self.all_channels[i] = {'call': 'receive_request', 'id': self.id, 'seq': self.request_numbers[self.id]}
             i += 1
         for event in self.all_events:
+            event.clear()
             event.set()
 
 
     def receive_token(self, args):
         self.event.clear()
-        self.token = copy.copy(self.channel['token'])
-        self.channel = {}
+        self.token = copy.copy(self.all_channels[self.id]['token'])
+        self.all_channels[self.id] = {}
         self.enter_critical_section.set()
         self.leave_critical_section.wait()
         self.token[self.id] = self.request_numbers[self.id]
         self.token.queue.pop()
+
+
+        print('CURRENT TOKEN QUEUE: ' + str(self.token.queue))
 
         i = 0
         for token_element, request_element in zip(self.token.queue, self.request_numbers):
@@ -129,6 +139,7 @@ class Talker(Thread):
 
     # params: {'id': int, 'token': token}
     def pass_token(self, args):
+        print('TOKEN was held by node ' + str(self.id) + ' and is being passed to node ' + str(args['id']))
         self.all_channels[args['id']] = args
         self.all_events[args['id']].set()
 
@@ -146,6 +157,16 @@ class Token:
 
 
 def main():
-    number_of_nodes = 4
-    communicator = Communicator(number_of_nodes)
-    environment = Environment(4, communicator)
+    communicator = Communicator(2)
+    environment = Environment(2, communicator)
+    environment.token.queue.append(1)
+    environment.nodes[1].talker.token = copy.copy(environment.token)
+    environment.nodes[0].talker.send_request()
+
+    print()
+    Talker.new_id = 0
+
+
+
+if __name__ == '__main__':
+    main()
