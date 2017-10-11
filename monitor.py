@@ -1,4 +1,5 @@
 from threading import Event, Condition, Thread, Lock
+import copy
 
 DEFAULT_START_THREADS = False
 
@@ -6,7 +7,7 @@ DEFAULT_START_THREADS = False
 class Communicator:
 
     def __init__(self, nodes_count):
-        self.channel = [{} for element in range(nodes_count)]
+        self.channels = [{} for element in range(nodes_count)]
         self.events = [Event() for element in range(nodes_count)]
 
 
@@ -16,30 +17,34 @@ class Environment:
     def __init__(self, nodes_count, communicator):
         self.nodes = []
         for i in range(nodes_count):
-            node = Node(communicator.events[i], communicator.channel[i])
+            node = Node(communicator.events, communicator.channels)
             node.talker.request_numbers = [0 for element in range(nodes_count)]
             self.nodes.append(node)
 
         self.nodes_count = Talker.new_id
         self.token = Token(self.nodes_count)
-        self.channel = [{} for element in range(nodes_count)]
 
 
 class Node:
 
-    def __init__(self, event, channel):
-        self.talker = Talker(event, channel)
+    def __init__(self, events, channels):
+        self.talker = Talker(events, channels)
+
+
+
 
 
 class Talker(Thread):
     new_id = 0
 
-    def __init__(self, event, channel):
+    def __init__(self, events, channels):
         self.id = Talker.new_id
         self.request_numbers = []
         self.token = None
-        self.event = event
-        self.channel = channel
+        self.event = events[self.id]
+        self.all_events = events
+        self.channel = channels[self.id]
+        self.all_channels = channels
 
         Talker.new_id += 1
         Thread.__init__(self)
@@ -69,7 +74,7 @@ class Talker(Thread):
             key = next(iter(incoming_data.values()))
             function_to_call = {
                 'incoming_request': self.handle_incoming_request,
-                'receive_token': self.receive_token,
+                'receive_token': self.receive_token
             }[key]
 
             print('Talker in node: ' + str(self.id) + ' was awoken with ' + key + ' call')
@@ -78,15 +83,27 @@ class Talker(Thread):
 
 
 
-    # params: {'id': int, 's': int (sequential number)
+    # params: {'id': int, 'seq': int (sequential number)
     def handle_incoming_request(self, args):
+        self.request_numbers[args['id']]\
+            = args['seq'] if args['seq'] > self.request_numbers[args['id']] else self.request_numbers[args['id']]
+        if self.token is not None:
+            pass_token({'id': args['id'], 'token': copy.copy(self.token)})
+            self.token = None
 
+    def send_request(self, args):
+        self.request_numbers[self.id] += 1
+        for element in self.all_channels:
+            element = {'id': self.id, 'seq': self.request_numbers[self.id]}
 
     def receive_token(self, args):
 
+    def pass_token(self, args):
+        self.all_channels[args['id']] = args
+        self.all_events[args['id']].set()
+
     def nodes_count_in_environment(self):
         return len(self.request_numbers)
-
 
     #def request
 
