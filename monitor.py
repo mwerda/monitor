@@ -1,7 +1,7 @@
 from threading import Event, Condition, Thread, Lock
 import copy
 
-DEFAULT_START_THREADS = False
+DEFAULT_START_THREADS = True
 
 
 class Communicator:
@@ -75,16 +75,14 @@ class Talker(Thread):
                 incoming_data = dict(self.channel)
             self.channel = {}
 
-            key = next(iter(incoming_data.values()))
+            function_name = incoming_data['call']
             function_to_call = {
-                'incoming_request': self.handle_incoming_request,
+                'receive_request': self.handle_incoming_request,
                 'receive_token': self.receive_token
-            }[key]
+            }[function_name]
 
-            print('Talker in node: ' + str(self.id) + ' was awoken with ' + key + ' call')
-            function_to_call(incoming_data[key])
-
-
+            print('Talker in node: ' + str(self.id) + ' was awoken with ' + function_name + ' call')
+            function_to_call(incoming_data)
 
 
     # params: {'id': int, 'seq': int (sequential number)
@@ -93,13 +91,15 @@ class Talker(Thread):
         self.request_numbers[args['id']]\
             = args['seq'] if args['seq'] > self.request_numbers[args['id']] else self.request_numbers[args['id']]
         if self.token is not None:
-            self.pass_token({'id': args['id'], 'token': copy.copy(self.token)})
+            self.pass_token({'call': 'receive_token', 'id': args['id'], 'token': copy.copy(self.token)})
             self.token = None
 
-    def send_request(self, args):
+    def send_request(self):
         self.request_numbers[self.id] += 1
+        i = 0
         for element in self.all_channels:
-            element = {'id': self.id, 'seq': self.request_numbers[self.id]}
+            self.all_channels[i] = {'call': 'receive_request', 'id': self.id, 'seq': self.request_numbers[self.id]}
+            i += 1
         for event in self.all_events:
             event.set()
 
@@ -125,14 +125,6 @@ class Talker(Thread):
             args = {'id': token_copy.queue[0], 'token': token_copy}
             self.token = None
             self.pass_token(args)
-
-        # skopiuj token do siebie
-        # wyslij sygnal do workera, zeby ogarnal swoja sekcje i zaloz waita na event, czekaj na odblokowanie
-        # wez LN[i] tokenowe = moje RN[i]
-        # queue pop
-        # dla kazdego id, ktorego nie ma w kolejce, dodaj jesli LN jest mniejsze od RN
-        # wywal token do pierwszego w kolejce - skopiuj i usun lokalna kopie
-        return
 
 
     # params: {'id': int, 'token': token}
